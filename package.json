@@ -1,7 +1,7 @@
 {
   "name": "@broadinstitute/igv",
   "version": "2.5.5",
-  "description": "Embeddable genomic visualization component based on the Integrative Genomics Viewer",
+  "description": "Development fork of igv, for patches before merging upstream",
   "main": "dist/igv.esm.js",
   "browser": "dist/igv.js",
   "module": "dist/igv.esm.js",
