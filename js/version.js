@@ -1,4 +1,4 @@
-const _version = "2.5.5-beta.1"
+const _version = "2.5.6-beta.1"
 function version() {
     return _version;
 }
