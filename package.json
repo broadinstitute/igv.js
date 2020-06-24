@@ -1,6 +1,6 @@
 {
   "name": "@broadinstitute/igv",
-  "version": "2.5.6-beta.1",
+  "version": "2.5.6-beta.2",
   "description": "Development fork of igv, for patches before merging upstream",
   "main": "dist/igv.esm.js",
   "browser": "dist/igv.js",
