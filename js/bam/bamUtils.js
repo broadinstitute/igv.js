@@ -101,19 +101,25 @@ const BamUtils = {
         chrAliasTable = {};
 
         for (i = 0; i < nRef; ++i) {
+            // Length of name, in characters
             var lName = readInt(ba, p);
+
+            // Name of this sequence
             var name = '';
             for (var j = 0; j < lName - 1; ++j) {
                 name += String.fromCharCode(ba[p + 4 + j]);
             }
+
+            // Length of this sequence, in basepairs
             var lRef = readInt(ba, p + lName + 4);
+
             //dlog(name + ': ' + lRef);
 
             chrToIndex[name] = i;
             chrNames[i] = name;
 
             if (genome) {
-                alias = genome.getChromosomeName(name);
+                alias = genome.getChromosomeName(name, lRef);
                 chrAliasTable[alias] = name;
             }
 

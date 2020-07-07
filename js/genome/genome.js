@@ -128,6 +128,10 @@ var Genome = function (config, sequence, ideograms, aliases) {
         if (name === "chrM") chrAliasTable["mt"] = "chrM";
         if (name === "MT") chrAliasTable["chrm"] = "MT";
         chrAliasTable[name.toLowerCase()] = name;
+
+        // Use sequence length as alias.  Assumes unique lengths.
+        // Helpful when e.g. BAMs use accessions instead of chromosome names.
+        chrAliasTable[self.chromosomes[name].bpLength] = name;
     });
 
     // Custom mappings
@@ -186,8 +190,14 @@ Genome.prototype.getHomeChromosomeName = function () {
     }
 }
 
-Genome.prototype.getChromosomeName = function (str) {
+Genome.prototype.getChromosomeName = function (str, length=null) {
     var chr = this.chrAliasTable[str.toLowerCase()];
+
+    // If chromosome name was not found for string, and a length was passed in,
+    // then get the canonical chromosome name from the passed chromosome length.
+    // This resembles a fallback for chromosome name lookups in desktop IGV.
+    if (!chr && length !== null) chr = this.chrAliasTable[length];
+
     return chr ? chr : str;
 }
 

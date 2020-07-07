@@ -49,7 +49,6 @@ import GtexUtils from "./gtex/gtexUtils.js";
 
 
 const Browser = function (options, parentDiv) {
-
     this.guid = guid();
     this.namespace = '.browser_' + this.guid;
     this.config = options;

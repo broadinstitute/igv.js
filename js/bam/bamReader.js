@@ -91,7 +91,7 @@ BamReader.prototype.readAlignments = async function (chr, bpStart, bpEnd) {
             var ba = unbgzf(compressed); //new Uint8Array(unbgzf(compressed)); //, c.maxv.block - c.minv.block + 1));
             const done = BamUtils.decodeBamRecords(ba, c.minv.offset, alignmentContainer, this.indexToChr, chrId, bpStart, bpEnd, this.filter);
 
-            if(done) {
+            if (done) {
                 console.log(`Loaded ${counter} chunks out of  ${chunks.length}`);
                 break;
             }
