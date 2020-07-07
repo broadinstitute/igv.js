@@ -166,6 +166,10 @@ Browser.prototype.isMultiLocusMode = function () {
     return this.genomicStateList && this.genomicStateList.length > 1;
 };
 
+Browser.prototype.addTrackToFactory = function (name, track){
+    TrackFactory.addTrack(name, track);
+}
+
 Browser.prototype.isMultiLocusWholeGenomeView = function () {
 
     if (undefined === this.genomicStateList || 1 === this.genomicStateList.length) {
@@ -318,7 +322,7 @@ Browser.prototype.loadSessionObject = async function (session) {
 
     this.removeAllTracks(true);
 
-    const genome = await this.loadGenome(session.reference || session.genome, session.locus)
+    const genome = await this.loadGenome(session.reference || session.genome, session.locus, false)
 
     // Restore gtex selections.
     if (session.gtexSelections) {
@@ -367,12 +371,9 @@ Browser.prototype.loadSessionObject = async function (session) {
 
     this.windowSizePanel.updateWithGenomicState(this.genomicStateList[0]);
 
-    // Resize is called to address minor alignment problems with multi-locus view.
-    this.resize();
-
 }
 
-Browser.prototype.loadGenome = async function (idOrConfig, initialLocus) {
+Browser.prototype.loadGenome = async function (idOrConfig, initialLocus, update) {
 
     // idOrConfig might be json
     if (isString(idOrConfig) && idOrConfig.startsWith("{")) {
@@ -418,7 +419,9 @@ Browser.prototype.loadGenome = async function (idOrConfig, initialLocus) {
         await this.loadTrackList(genomeConfig.tracks);
     }
 
-    this.resize();    // Force recomputation and repaint
+    if(update !== false) {
+        this.updateViews();
+    }
     return this.genome;
 
 
@@ -592,14 +595,14 @@ Browser.prototype.removeROI = function (roiToRemove) {
         }
     }
     for (let tv of this.trackViews) {
-        tv.updateViews(true);
+        tv.updateViews(undefined, undefined, true);
     }
 }
 
 Browser.prototype.clearROIs = function () {
     this.roi = [];
     for (let tv of this.trackViews) {
-        tv.updateViews(true);
+        tv.updateViews(undefined, undefined, true);
     }
 }
 
@@ -714,6 +717,7 @@ Browser.prototype.createTrack = function (config) {
     trackConfig.browser = this;
 
     let track
+
     switch (type) {
 
         case "annotation":
@@ -722,11 +726,11 @@ Browser.prototype.createTrack = function (config) {
         case "junctions":
         case "splicejunctions":
         case "snp":
-            track = TrackFactory["feature"](trackConfig, this);
+            track = TrackFactory.getTrack("feature")(trackConfig, this);
             break;
         default:
-            if (TrackFactory.hasOwnProperty(type)) {
-                track = TrackFactory[type](trackConfig, this);
+            if (TrackFactory.tracks.hasOwnProperty(type)) {
+                track = TrackFactory.getTrack(type)(trackConfig, this);
             } else {
                 track = undefined;
             }
@@ -851,13 +855,11 @@ Browser.prototype.removeAllTracks = function (removeSequence) {
  */
 Browser.prototype.findTracks = function (property, value) {
 
-    var tracks = [];
-    this.trackViews.forEach(function (trackView) {
-        if (value === trackView.track[property]) {
-            tracks.push(trackView.track)
-        }
-    })
-    return tracks;
+    let f = typeof property === 'function' ?
+        trackView => property(trackView.track) :
+        trackView => value === trackView.track[property]
+
+    return this.trackViews.filter(f).map(tv => tv.track);
 };
 
 Browser.prototype.setTrackHeight = function (newHeight) {
@@ -962,7 +964,7 @@ Browser.prototype.updateViews = async function (genomicState, views, force) {
     // Don't autoscale while dragging.
     if (self.dragObject) {
         for (let trackView of views) {
-            await trackView.updateViews();
+            await trackView.updateViews(force);
         }
     } else {
         // Group autoscale
@@ -1006,7 +1008,7 @@ Browser.prototype.updateViews = async function (genomicState, views, force) {
             for (let trackView of groupTrackViews) {
                 trackView.track.dataRange = dataRange;
                 trackView.track.autoscale = false;
-                await trackView.updateViews();
+                await trackView.updateViews(force);
             }
 
         }
@@ -1425,7 +1427,7 @@ Browser.prototype.buildViewportsWithGenomicStateList = function (genomicStateLis
     var width;
 
     width = this.viewportContainerWidth() / this.genomicStateList.length;
-
+console.log("build viewports width = " + width);
     this.trackViews.forEach(function (trackView) {
 
         genomicStateList.forEach(function (genomicState) {
@@ -1939,7 +1941,7 @@ Browser.prototype.sessionURL = function () {
 Browser.prototype.currentLoci = function () {
     const loci = [];
     const anyTrackView = this.trackViews[0];
-    for(let viewport of anyTrackView.viewports) {
+    for (let viewport of anyTrackView.viewports) {
         const genomicState = viewport.genomicState;
         const pixelWidth = viewport.$viewport[0].clientWidth;
         const locusString = genomicState.referenceFrame.showLocus(pixelWidth);
