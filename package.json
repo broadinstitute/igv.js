@@ -1,11 +1,11 @@
 {
-  "name": "igv",
-  "version": "2.16.0",
+  "name": "@single-cell-portal/igv",
+  "version": "2.16.0-alpha.1",
   "main": "dist/igv.esm.js",
   "browser": "dist/igv.js",
   "module": "dist/igv.esm.js",
   "type": "module",
-  "description": "Embeddable genomic visualization component based on the Integrative Genomics Viewer",
+  "description": "Development fork of igv.js, for patches before merging upstream",
   "files": [
     "dist/**"
   ],
