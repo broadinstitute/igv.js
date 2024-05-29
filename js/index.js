@@ -7,7 +7,6 @@ import {createBrowser, createTrack, removeAllBrowsers, removeBrowser, visibility
 import embedCss from "./embedCss.js"
 import version from "./version.js"
 import * as TrackUtils from "./util/trackUtils.js"
-import GenomeUtils from "./genome/genomeUtils.js"
 import {registerFileFormats} from "./util/trackUtils.js"
 import {igvxhr, FeatureUtils, FeatureCache} from "../node_modules/igv-utils/src/index.js"
 import {registerTrackClass, registerTrackCreatorFunction} from "./trackFactory.js"
@@ -34,7 +33,6 @@ export default {
     MenuUtils,
     FeatureUtils,
     FeatureCache,
-    GenomeUtils,
     DataRangeDialog,
     createTrack,
     createBrowser,
