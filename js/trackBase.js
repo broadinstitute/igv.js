@@ -25,9 +25,9 @@
 
 import {isSimpleType} from "./util/igvUtils.js"
 import {FeatureUtils, FileUtils, StringUtils} from "../node_modules/igv-utils/src/index.js"
-import {getMultiSelectedTrackViews, isMultiSelectedTrackView} from "./ui/menuUtils.js"
 import $ from "./vendor/jquery-3.3.1.slim.js"
 import {createCheckbox} from "./igv-icons.js"
+import {findFeatureAfterCenter} from "./feature/featureUtils.js"
 
 const DEFAULT_COLOR = 'rgb(150,150,150)'
 
@@ -55,7 +55,8 @@ class TrackBase {
         visibilityWindow: undefined,   // Identifies property that should be copied from config
         color: undefined,  // Identifies property that should be copied from config
         altColor: undefined,  // Identifies property that should be copied from config
-        supportHiDPI: true
+        supportHiDPI: true,
+        selected: false
     }
 
     constructor(config, browser) {
@@ -77,16 +78,19 @@ class TrackBase {
             config.displayMode = config.displayMode.toUpperCase()
         }
 
-        // Set default properties
+        // Base default settings
         const defaults = Object.assign({}, TrackBase.defaults)
-        if(this.constructor.defaults) {
-            for(let key of Object.keys(this.constructor.defaults)) {
+
+        // Overide with class specific default settings
+        if (this.constructor.defaults) {
+            for (let key of Object.keys(this.constructor.defaults)) {
                 defaults[key] = this.constructor.defaults[key]
             }
         }
-        for(let key of Object.keys(defaults)) {
+
+        for (let key of Object.keys(defaults)) {
             this[key] = config.hasOwnProperty(key) ? config[key] : defaults[key]
-            if(key === 'color' || key === 'altColor') {
+            if ((key === 'color' || key === 'altColor') && this[key]) {
                 this[key] = fixColor(this[key])
             }
         }
@@ -100,15 +104,13 @@ class TrackBase {
         }
 
         this.url = config.url
-        if(this.config.type) this.type = this.config.type
+        if (this.config.type) this.type = this.config.type
         this.id = this.config.id === undefined ? this.name : this.config.id
         this.order = config.order
         this.autoscaleGroup = config.autoscaleGroup
         this.removable = config.removable === undefined ? true : config.removable      // Defaults to true
         this.minHeight = config.minHeight || Math.min(25, this.height)
         this.maxHeight = config.maxHeight || Math.max(1000, this.height)
-
-        this.isMultiSelection = config.isMultiSelection || false
 
         if (config.onclick) {
             this.onclick = config.onclick
@@ -158,7 +160,7 @@ class TrackBase {
 
     repaintViews() {
         if (this.trackView) {
-            this.trackView.repaintViews();
+            this.trackView.repaintViews()
         }
     }
 
@@ -177,7 +179,6 @@ class TrackBase {
         const jsonableConfigKeys = Object.keys(this.config).filter(key => isJSONable(this.config[key]))
 
         for (const key of jsonableConfigKeys) {
-
             if (!key.startsWith("_")) {
                 state[key] = this.config[key]
             }
@@ -187,7 +188,7 @@ class TrackBase {
         for (let key of Object.keys(state)) {
             if (key.startsWith("_")) continue   // transient property
             const value = this[key]
-            if (value && (isSimpleType(value) || typeof value === "boolean" || key === "metadata")) {
+            if (value !== undefined && (isSimpleType(value) || typeof value === "boolean" || key === "metadata")) {
                 state[key] = value
             }
         }
@@ -299,10 +300,14 @@ class TrackBase {
                             min = Number(tokens[0])
                             max = Number(tokens[1])
                         }
-                        tracklineConfg.autoscale = false
-                        tracklineConfg.dataRange = {min, max}
-                        this.viewLimitMin = min
-                        this.viewLimitMax = max
+                        if (Number.isNaN(max) || Number.isNaN(min)) {
+                            console.warn(`Unexpected viewLimits value in track line: ${properties["viewLimits"]}`)
+                        } else {
+                            tracklineConfg.autoscale = false
+                            tracklineConfg.dataRange = {min, max}
+                            this.viewLimitMin = min
+                            this.viewLimitMax = max
+                        }
                     }
                 case "name":
                     tracklineConfg[key] = properties[key]
@@ -523,14 +528,15 @@ class TrackBase {
 
         function dialogPresentationHandler() {
 
-            if (isMultiSelectedTrackView(this.trackView)) {
-                this.browser.dataRangeDialog.configure(getMultiSelectedTrackViews(this.trackView.browser))
+            if (this.trackView.track.selected) {
+                this.browser.dataRangeDialog.configure(this.trackView.browser.getSelectedTrackViews())
             } else {
                 this.browser.dataRangeDialog.configure(this.trackView)
             }
             this.browser.dataRangeDialog.present($(this.browser.columnContainer))
         }
-        menuItems.push({ object, dialog:dialogPresentationHandler })
+
+        menuItems.push({object, dialog: dialogPresentationHandler})
 
         if (this.logScale !== undefined) {
 
@@ -541,7 +547,7 @@ class TrackBase {
                 this.trackView.repaintViews()
             }
 
-            menuItems.push({ object, click:logScaleHandler })
+            menuItems.push({object, click: logScaleHandler})
         }
 
         object = $(createCheckbox("Autoscale", this.autoscale))
@@ -552,9 +558,34 @@ class TrackBase {
             this.browser.updateViews()
         }
 
-        menuItems.push({ object, click:autoScaleHandler })
+        menuItems.push({object, click: autoScaleHandler})
 
         return menuItems
+    }
+
+    /**
+     * Return the first feature in this track whose start position is > position
+     * @param chr
+     * @param position
+     * @returns {Promise<void>}
+     */
+    async nextFeatureAfter(chr, position, direction) {
+        const viewport = this.trackView.viewports[0]
+        let features = viewport.cachedFeatures
+        if (features && Array.isArray(features) && features.length > 0) {
+            // Check chromosome, all cached features will share a chromosome
+            const chrName = this.browser.genome.getChromosomeName(features[0].chr)
+            if (chrName === chr) {
+                const next = findFeatureAfterCenter(features, position, direction)
+                if (next) {
+                    return next
+                }
+            }
+        }
+
+        if (typeof this.featureSource.nextFeature === 'function') {
+            return this.featureSource.nextFeature(chr, position, direction, this.visibilityWindow)
+        }
     }
 
     /**
@@ -595,7 +626,8 @@ class TrackBase {
 
         for (const key of ['url', 'indexURL']) {
             if (cooked[key] && cooked[key] instanceof File) {
-                cooked[ lut[ key ] ] = cooked[key].name
+                cooked[lut[key]] = cooked[key].name
+                delete cooked[key]
             }
         }
 

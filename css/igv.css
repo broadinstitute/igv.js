@@ -80,6 +80,7 @@
   color: #444;
 }
 .igv-ui-popover > div:last-child {
+  user-select: text;
   overflow-y: auto;
   overflow-x: hidden;
   max-height: 400px;
@@ -90,7 +91,6 @@
   border-bottom-right-radius: 4px;
 }
 .igv-ui-popover > div:last-child > div {
-  user-select: all;
   margin-left: 4px;
   margin-right: 4px;
   min-width: 220px;
@@ -1895,6 +1895,13 @@
 .igv-roi-table {
   position: absolute;
   z-index: 1024;
+  display: flex;
+  flex-flow: column;
+  flex-wrap: nowrap;
+  justify-content: flex-start;
+  align-items: stretch;
+  resize: both;
+  overflow: hidden;
   width: min-content;
   max-width: 1600px;
   border-color: #7f7f7f;
@@ -1905,11 +1912,6 @@
   font-size: 12px;
   font-weight: 400;
   background-color: white;
-  display: flex;
-  flex-flow: column;
-  flex-wrap: nowrap;
-  justify-content: flex-start;
-  align-items: stretch;
   cursor: default;
 }
 .igv-roi-table > div {
@@ -2010,16 +2012,15 @@
   border-right: unset;
 }
 .igv-roi-table > .igv-roi-table-row-container {
-  overflow: auto;
-  resize: both;
-  max-width: 1600px;
-  height: 360px;
-  background-color: transparent;
   display: flex;
   flex-flow: column;
   flex-wrap: nowrap;
   justify-content: flex-start;
   align-items: stretch;
+  overflow: auto;
+  height: 360px;
+  flex: 1 1 auto;
+  background-color: transparent;
 }
 .igv-roi-table > .igv-roi-table-row-container > .igv-roi-table-row {
   height: 24px;
@@ -2050,6 +2051,7 @@
   background-color: rgba(0, 0, 0, 0.04);
 }
 .igv-roi-table > div:last-child {
+  min-height: 32px;
   height: 32px;
   line-height: 32px;
   border-top-color: #7f7f7f;

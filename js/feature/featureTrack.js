@@ -11,6 +11,7 @@ import {StringUtils} from "../../node_modules/igv-utils/src/index.js"
 import {ColorTable, PaletteColorTable} from "../util/colorPalletes.js"
 import {isSecureContext, expandRegion} from "../util/igvUtils.js"
 import {IGVColor} from "../../node_modules/igv-utils/src/index.js"
+import {findFeatureAfterCenter} from "./featureUtils.js"
 
 const DEFAULT_COLOR = 'rgb(0, 0, 150)'
 
@@ -26,7 +27,6 @@ class FeatureTrack extends TrackBase {
         autoHeight: false,
         useScore: false
     }
-
 
     constructor(config, browser) {
         super(config, browser)
@@ -122,7 +122,6 @@ class FeatureTrack extends TrackBase {
         }
     }
 
-
     /**
      * Return boolean indicating if this track supports the whole genome view.  Generally this is non-indexed feature
      * tracks.
@@ -142,12 +141,9 @@ class FeatureTrack extends TrackBase {
     }
 
     async getFeatures(chr, start, end, bpPerPixel) {
-
         const visibilityWindow = this.visibilityWindow
-
         return this.featureSource.getFeatures({chr, start, end, bpPerPixel, visibilityWindow})
     }
-
 
     /**
      * The required height in pixels required for the track content.   This is not the visible track height, which
@@ -324,7 +320,7 @@ class FeatureTrack extends TrackBase {
                 // If we have clicked over an exon number it.
                 // Disabled for GFF and GTF files if the visibility window is < the feature length since we don't know if we have all exons
                 const isGFF = "gff" === this.config.format || "gff3" === this.config.format || "gtf" === this.config.format
-                if (f.exons) {
+                if (f.exons && f.exons.length > 1) {
                     for (let i = 0; i < f.exons.length; i++) {
                         const exon = f.exons[i]
                         if (genomicLocation >= exon.start && genomicLocation <= exon.end) {

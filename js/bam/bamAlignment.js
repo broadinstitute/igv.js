@@ -1,7 +1,8 @@
 
 import {StringUtils} from "../../node_modules/igv-utils/src/index.js"
 import {createSupplementaryAlignments} from "./supplementaryAlignment.js"
-import {getBaseModificationSets} from "./mods/baseModificationUtils.js"
+import {byteToUnsignedInt, getBaseModificationSets, modificationName} from "./mods/baseModificationUtils.js"
+import orientationTypes from "./orientationTypes.js"
 
 
 const READ_PAIRED_FLAG = 0x1
@@ -110,6 +111,10 @@ class BamAlignment {
             }
         }
         return this.tagDict
+    }
+
+    getTag(key) {
+        return this.tags()[key]
     }
 
 
@@ -240,6 +245,25 @@ class BamAlignment {
         nameValues.push({name: 'Read Base:', value: this.readBaseAt(genomicLocation)})
         nameValues.push({name: 'Base Quality:', value: this.readBaseQualityAt(genomicLocation)})
 
+        const bmSets = this.getBaseModificationSets()
+        if(bmSets) {
+            const i = this.positionToReadIndex(genomicLocation)
+            if(undefined !== i) {
+                let found = false
+                for (let bmSet of bmSets) {
+                    if (bmSet.containsPosition(i)) {
+                        if(!found) {
+                            nameValues.push('<hr/>')
+                            nameValues.push('<b>Base modifications:</b>')
+                            found = true
+                        }
+                        const lh = Math.round((100/255) * byteToUnsignedInt(bmSet.likelihoods.get(i)))
+                        nameValues.push(`${bmSet.fullName()} @ likelihood =  ${lh}%`)
+                    }
+                }
+            }
+        }
+
         return nameValues
 
 
@@ -335,6 +359,53 @@ class BamAlignment {
         }
         return this.baseModificationSets
     }
+
+     getGroupValue( groupBy, tag, expectedPairOrientation) {
+
+        const al = this
+        switch (groupBy) {
+            // case 'HAPLOTYPE':
+            //     return al.getHaplotypeName();
+            case 'strand':
+                return al.strand ? '+' : '-'
+            case 'firstOfPairStrand':
+                const strand = al.firstOfPairStrand
+                return strand === undefined ? "" : strand ? '+' : '-'
+            case 'mateChr':
+                return (al.mate && al.isMateMapped()) ? al.mate.chr : ""
+            case 'pairOrientation':
+                return orientationTypes[expectedPairOrientation][al.pairOrientation] || ""
+            case 'chimeric':
+                return al.tags()['SA'] ? "chimeric" : ""
+            case 'supplementary':
+                return al.isSupplementary ? "supplementary" : ""
+            case 'readOrder':
+                if (al.isPaired() && al.isFirstOfPair()) {
+                    return "first"
+                } else if (al.isPaired() && al.isSecondOfPair()) {
+                    return "second"
+                } else {
+                    return ""
+                }
+            case 'phase':
+                return al.tags()['HP'] || ""
+            case 'tag':
+                return al.tags()[tag] || ""
+            // Add cases for other options as needed
+            default:
+                return undefined
+        }
+    }
+
+    positionToReadIndex( position) {
+        const block = blockAtGenomicLocation(this.blocks, position)
+        if (block) {
+            return (position - block.start) + block.seqOffset
+        } else {
+            return undefined
+        }
+    }
+
 
 }
 
